@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,user-scalable=no" />
+  <link rel="stylesheet" href="./common.css" />
+  <title>Meen Dash - Right</title>
+</head>
+<body>
+  <div class="topbar">
+    <div id="title" class="title">RIGHT</div>
+    <div id="dot" class="dot ok"></div>
+    <div id="pages" class="pages">1/3</div>
+  </div>
+  <div class="stage" id="app"></div>
+  <div class="hint">Swipe to change page</div>
+
+  <script type="module">
+    import { mountApp } from "./common.js";
+    mountApp("right");
+  </script>
+</body>
+</html>
