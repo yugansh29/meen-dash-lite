@@ -1,6 +1,6 @@
 // Edit these in one place
 export const CFG = {
-  BASE_URL: "http://meenmotors.local:8000",
+  BASE_URL: "http://localhost:8000",
   VEHICLE_ID: "685aa1bece3473f0456478b3",
 
   // Polling (ms) - keep reasonable; UI will animate smoothly on its own
