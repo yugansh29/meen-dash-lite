@@ -77,3 +77,127 @@ button:disabled { opacity: 0.4; }
 }
 .statuslabel { opacity: 0.8; letter-spacing: 0.08em; }
 .statusvalue { font-size: 54px; font-weight: 900; }
+/* Media Player Styles */
+.media-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.media-time {
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 0.9;
+  letter-spacing: 0.05em;
+}
+
+.media-art-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.media-art {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255,50,100,0.3) 0%, rgba(100,50,255,0.3) 100%);
+  border: 2px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.media-art-icon {
+  font-size: 80px;
+  opacity: 0.6;
+}
+
+.media-error {
+  color: #ff3b3b;
+  font-size: 16px;
+  opacity: 0.9;
+  margin: -10px 0 10px 0;
+}
+
+.media-info {
+  text-align: center;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.media-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.media-artist {
+  font-size: 20px;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.media-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.media-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  color: #e8eefc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.media-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.4);
+  transform: scale(1.05);
+}
+
+.media-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.media-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.media-btn-prev, .media-btn-next {
+  width: 64px;
+  height: 64px;
+}
+
+.media-btn-play {
+  width: 90px;
+  height: 90px;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.media-btn-play:hover:not(:disabled) {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.5);
+}

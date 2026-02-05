@@ -3,7 +3,12 @@ import {
   getCarstateHistory, pickLatestCarstate,
   getOwnerStatus, getTempCurrent, getHeadlightLatest,
   runHealthCheck, extractHealthErrors,
-  setHeadlight, setCabinlight
+  setHeadlight as setHeadlightApi, 
+  setCabinlight as setCabinlightApi,
+  getMediaStatus, 
+  playPauseMedia as playPauseMediaApi, 
+  nextTrack as nextTrackApi, 
+  previousTrack as previousTrackApi
 } from "./api.js";
 
 import { drawRingGauge, drawNeedleGauge, lerp } from "./gauges.js";
@@ -17,7 +22,7 @@ export function mountApp(screen) {
   titleEl.textContent = screen.toUpperCase();
 
   const pages = (screen === "left")
-    ? [pageBattery, pageSpeed]
+    ? [pageBattery, pageSpeed, pageMedia]
     : [pageOwner, pageHealth, pageControls];
 
   let page = 0;
@@ -28,6 +33,9 @@ export function mountApp(screen) {
   let headlightOn = false;
   let healthErrors = [];
   let upstreamOk = true;
+  let mediaStatus = "unavailable";
+  let mediaTrack = { title: "No track", artist: "", album: "" };
+  let mediaAvailable = false;
 
   // smoothed render values
   let speed = 0, batt = 0, temp = 0;
@@ -42,8 +50,8 @@ export function mountApp(screen) {
     el.innerHTML = "";
     pages[page]({
       root: el,
-      get: () => ({ speed, batt, temp, ownerDetected, headlightOn, healthErrors, upstreamOk }),
-      actions: { runHealth, setHeadlight, setCabinlight }
+      get: () => ({ speed, batt, temp, ownerDetected, headlightOn, healthErrors, upstreamOk, mediaStatus, mediaTrack, mediaAvailable }),
+      actions: { runHealth, setHeadlight, setCabinlight, playPauseMedia, nextTrack, previousTrack }
     });
   }
 
@@ -105,6 +113,29 @@ export function mountApp(screen) {
     }
   }
 
+  async function pollMedia() {
+    try {
+      const m = await getMediaStatus();
+      mediaStatus = m?.status || "unavailable";
+      mediaAvailable = m?.has_player && mediaStatus !== "unavailable" && mediaStatus !== "no_player";
+      if (m?.track) {
+        mediaTrack = {
+          title: m.track.title || "Unknown Track",
+          artist: m.track.artist || "Unknown Artist",
+          album: m.track.album || ""
+        };
+      } else {
+        mediaTrack = { title: "No track", artist: "", album: "" };
+      }
+      setUpstream(true);
+    } catch {
+      mediaAvailable = false;
+      setUpstream(false);
+    } finally {
+      setTimeout(pollMedia, CFG.MEDIA_POLL_MS);
+    }
+  }
+
   async function runHealth() {
     try {
       const resp = await runHealthCheck();
@@ -131,6 +162,7 @@ export function mountApp(screen) {
   pollOwner();
   pollTemp();
   pollHeadlight();
+  pollMedia();
 
   // expose for controls page
   async function setHeadlight(on) {
@@ -139,14 +171,30 @@ export function mountApp(screen) {
   async function setCabinlight(payload) {
     await setUpstreamWrap(() => setCabinlightApi(payload));
   }
+  async function playPauseMedia() {
+    await setUpstreamWrap(async () => {
+      await playPauseMediaApi();
+      // Immediately poll to update UI
+      setTimeout(pollMedia, 100);
+    });
+  }
+  async function nextTrack() {
+    await setUpstreamWrap(async () => {
+      await nextTrackApi();
+      setTimeout(pollMedia, 500);
+    });
+  }
+  async function previousTrack() {
+    await setUpstreamWrap(async () => {
+      await previousTrackApi();
+      setTimeout(pollMedia, 500);
+    });
+  }
 
   async function setUpstreamWrap(fn) {
     try { await fn(); setUpstream(true); }
     catch { setUpstream(false); }
   }
-
-  async function setHeadlightApi(on) { return setHeadlight(on); }
-  async function setCabinlightApi(payload) { return setCabinlight(payload); }
 
   // pages
   function pageBattery({root, get}) {
@@ -179,6 +227,65 @@ export function mountApp(screen) {
     drawRingGauge(document.getElementById("ring").getContext("2d"), {
       w:720, h:720, value:batt, min:0, max:100, label:"BATT", unit:"%"
     });
+  }
+
+  function pageMedia({root, get, actions}) {
+    const { mediaStatus, mediaTrack, mediaAvailable, upstreamOk } = get();
+    const isPlaying = mediaStatus === "playing";
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    
+    root.innerHTML = `
+      <div class="card media-player">
+        <div class="media-time">${timeStr}</div>
+        <div class="media-art-container">
+          <div class="media-art">
+            <div class="media-art-icon">♪</div>
+          </div>
+        </div>
+        ${!upstreamOk || !mediaAvailable ? `
+          <div class="media-error">
+            ${!upstreamOk ? "API not reachable" : "No Bluetooth media player"}
+          </div>
+        ` : ""}
+        <div class="media-info">
+          <div class="media-title">${mediaTrack.title}</div>
+          <div class="media-artist">${mediaTrack.artist}</div>
+        </div>
+        <div class="media-controls">
+          <button class="media-btn media-btn-prev" id="btnPrev" ${!mediaAvailable ? "disabled" : ""}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 20L9 12l10-8v16z"/>
+              <path d="M5 19V5"/>
+            </svg>
+          </button>
+          <button class="media-btn media-btn-play" id="btnPlay" ${!mediaAvailable ? "disabled" : ""}>
+            ${isPlaying ? `
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="4" width="4" height="16"/>
+                <rect x="14" y="4" width="4" height="16"/>
+              </svg>
+            ` : `
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            `}
+          </button>
+          <button class="media-btn media-btn-next" id="btnNext" ${!mediaAvailable ? "disabled" : ""}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 4l10 8-10 8V4z"/>
+              <path d="M19 5v14"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+    
+    if (mediaAvailable) {
+      document.getElementById("btnPlay").onclick = () => actions.playPauseMedia();
+      document.getElementById("btnPrev").onclick = () => actions.previousTrack();
+      document.getElementById("btnNext").onclick = () => actions.nextTrack();
+    }
   }
 
   function pageOwner({root, get}) {

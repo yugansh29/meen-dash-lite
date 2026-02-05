@@ -8,6 +8,7 @@ export const CFG = {
   OWNER_POLL_MS: 500,
   TEMP_POLL_MS: 500,
   HEADLIGHT_POLL_MS: 500,
+  MEDIA_POLL_MS: 1500,
 
   // Health check on-demand, not constant
 };
@@ -50,6 +51,22 @@ export async function setCabinlight(payload) {
 
 export async function runHealthCheck() {
   return http("POST", `/health/check`, {});
+}
+
+export async function getMediaStatus() {
+  return http("GET", `/media/status`);
+}
+
+export async function playPauseMedia() {
+  return http("POST", `/media/playpause`);
+}
+
+export async function nextTrack() {
+  return http("POST", `/media/next`);
+}
+
+export async function previousTrack() {
+  return http("POST", `/media/previous`);
 }
 
 // Latest selection from JSON array of records
