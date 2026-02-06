@@ -69,6 +69,11 @@ export async function previousTrack() {
   return http("POST", `/media/previous`);
 }
 
+export async function getMediaThumbnail(artist, title) {
+  const params = new URLSearchParams({ artist, title });
+  return http("GET", `/media/thumbnail?${params}`);
+}
+
 // Latest selection from JSON array of records
 export function pickLatestCarstate(records) {
   if (!Array.isArray(records) || records.length === 0) return null;

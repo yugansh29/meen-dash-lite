@@ -8,7 +8,8 @@ import {
   getMediaStatus, 
   playPauseMedia as playPauseMediaApi, 
   nextTrack as nextTrackApi, 
-  previousTrack as previousTrackApi
+  previousTrack as previousTrackApi,
+  getMediaThumbnail
 } from "./api.js";
 
 import { drawRingGauge, drawNeedleGauge, lerp } from "./gauges.js";
@@ -36,6 +37,7 @@ export function mountApp(screen) {
   let mediaStatus = "unavailable";
   let mediaTrack = { title: "No track", artist: "", album: "" };
   let mediaAvailable = false;
+  let mediaThumbnailUrl = null;
 
   // smoothed render values
   let speed = 0, batt = 0, temp = 0;
@@ -50,7 +52,7 @@ export function mountApp(screen) {
     el.innerHTML = "";
     pages[page]({
       root: el,
-      get: () => ({ speed, batt, temp, ownerDetected, headlightOn, healthErrors, upstreamOk, mediaStatus, mediaTrack, mediaAvailable }),
+      get: () => ({ speed, batt, temp, ownerDetected, headlightOn, healthErrors, upstreamOk, mediaStatus, mediaTrack, mediaAvailable, mediaThumbnailUrl }),
       actions: { runHealth, setHeadlight, setCabinlight, playPauseMedia, nextTrack, previousTrack }
     });
   }
@@ -118,14 +120,26 @@ export function mountApp(screen) {
       const m = await getMediaStatus();
       mediaStatus = m?.status || "unavailable";
       mediaAvailable = m?.has_player && mediaStatus !== "unavailable" && mediaStatus !== "no_player";
+      
+      const prevTitle = mediaTrack.title;
+      const prevArtist = mediaTrack.artist;
+      
       if (m?.track) {
         mediaTrack = {
           title: m.track.title || "Unknown Track",
           artist: m.track.artist || "Unknown Artist",
           album: m.track.album || ""
         };
+        
+        // Fetch thumbnail if track changed and we have valid artist and title
+        if ((mediaTrack.title !== prevTitle || mediaTrack.artist !== prevArtist) &&
+            mediaTrack.artist && mediaTrack.title && 
+            mediaTrack.artist !== "Unknown Artist" && mediaTrack.title !== "Unknown Track") {
+          fetchThumbnail(mediaTrack.artist, mediaTrack.title);
+        }
       } else {
         mediaTrack = { title: "No track", artist: "", album: "" };
+        mediaThumbnailUrl = null;
       }
       setUpstream(true);
       if (shouldRender) {
@@ -136,6 +150,21 @@ export function mountApp(screen) {
       setUpstream(false);
     } finally {
       setTimeout(pollMedia, CFG.MEDIA_POLL_MS);
+    }
+  }
+
+  async function fetchThumbnail(artist, title) {
+    try {
+      const result = await getMediaThumbnail(artist, title);
+      if (result?.thumbnail_url) {
+        mediaThumbnailUrl = result.thumbnail_url;
+        render(); // Re-render to show new thumbnail
+      } else {
+        mediaThumbnailUrl = null;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch thumbnail:", e);
+      mediaThumbnailUrl = null;
     }
   }
 
@@ -235,17 +264,22 @@ export function mountApp(screen) {
   }
 
   function pageMedia({root, get, actions}) {
-    const { mediaStatus, mediaTrack, mediaAvailable, upstreamOk } = get();
+    const { mediaStatus, mediaTrack, mediaAvailable, upstreamOk, mediaThumbnailUrl } = get();
     const isPlaying = mediaStatus === "playing";
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    
+    // Build background style for the album art
+    const artStyle = mediaThumbnailUrl 
+      ? `background-image: url('${mediaThumbnailUrl}'); background-size: cover; background-position: center;`
+      : `background: linear-gradient(135deg, rgba(255,50,100,0.3) 0%, rgba(100,50,255,0.3) 100%);`;
     
     root.innerHTML = `
       <div class="card media-player">
         <div class="media-time">${timeStr}</div>
         <div class="media-art-container">
-          <div class="media-art">
-            <div class="media-art-icon">♪</div>
+          <div class="media-art" style="${artStyle}">
+            ${!mediaThumbnailUrl ? '<div class="media-art-icon">♪</div>' : ''}
           </div>
         </div>
         ${!upstreamOk || !mediaAvailable ? `
