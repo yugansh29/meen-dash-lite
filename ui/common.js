@@ -113,7 +113,7 @@ export function mountApp(screen) {
     }
   }
 
-  async function pollMedia() {
+  async function pollMedia(shouldRender = false) {
     try {
       const m = await getMediaStatus();
       mediaStatus = m?.status || "unavailable";
@@ -128,6 +128,9 @@ export function mountApp(screen) {
         mediaTrack = { title: "No track", artist: "", album: "" };
       }
       setUpstream(true);
+      if (shouldRender) {
+        render();
+      }
     } catch {
       mediaAvailable = false;
       setUpstream(false);
@@ -175,19 +178,21 @@ export function mountApp(screen) {
     await setUpstreamWrap(async () => {
       await playPauseMediaApi();
       // Immediately poll to update UI
-      setTimeout(pollMedia, 100);
+      setTimeout(() => pollMedia(true), 100);
     });
   }
   async function nextTrack() {
     await setUpstreamWrap(async () => {
       await nextTrackApi();
-      setTimeout(pollMedia, 500);
+      // Wait for Bluetooth to update, then poll and re-render
+      setTimeout(() => pollMedia(true), 800);
     });
   }
   async function previousTrack() {
     await setUpstreamWrap(async () => {
       await previousTrackApi();
-      setTimeout(pollMedia, 500);
+      // Wait for Bluetooth to update, then poll and re-render
+      setTimeout(() => pollMedia(true), 800);
     });
   }
 
