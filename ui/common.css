@@ -82,86 +82,115 @@ button:disabled { opacity: 0.4; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 20px;
-}
-
-.media-time {
-  font-size: 18px;
-  font-weight: 600;
-  opacity: 0.9;
-  letter-spacing: 0.05em;
-}
-
-.media-art-container {
-  width: 100%;
-  display: flex;
   justify-content: center;
-  margin: 10px 0;
+  width: 746px;
+  height: 746px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: #1a1a1a;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
 }
 
-.media-art {
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255,50,100,0.3) 0%, rgba(100,50,255,0.3) 100%);
-  border: 2px solid rgba(255,255,255,0.15);
+.media-player::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1;
+}
+
+.media-player-content {
+  position: relative;
+  z-index: 2;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-}
-
-.media-art-icon {
-  font-size: 80px;
-  opacity: 0.6;
-}
-
-.media-error {
-  color: #ff3b3b;
-  font-size: 16px;
-  opacity: 0.9;
-  margin: -10px 0 10px 0;
+  width: 100%;
+  height: 100%;
+  padding: 60px;
 }
 
 .media-info {
   text-align: center;
   width: 100%;
-  margin: 10px 0;
+  margin-bottom: 30px;
 }
 
 .media-title {
-  font-size: 28px;
-  font-weight: 800;
-  margin-bottom: 8px;
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #00ff88;
+  text-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
+  max-width: 603px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .media-artist {
-  font-size: 20px;
-  opacity: 0.75;
+  font-size: 24px;
+  opacity: 0.9;
+  color: #e8eefc;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
+  max-width: 603px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.media-progress-container {
+  width: 603px;
+  margin: 30px 0;
+}
+
+.media-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.media-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff88 0%, #00d4aa 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
+}
+
+.media-time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  opacity: 0.7;
+  margin-top: 8px;
+  color: #e8eefc;
 }
 
 .media-controls {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 30px;
-  margin-top: 20px;
+  gap: 40px;
+  margin-top: 40px;
 }
 
 .media-btn {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0, 255, 136, 0.1);
+  border: 2px solid rgba(0, 255, 136, 0.3);
   border-radius: 50%;
-  color: #e8eefc;
+  color: #00ff88;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -171,9 +200,10 @@ button:disabled { opacity: 0.4; }
 }
 
 .media-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.4);
+  background: rgba(0, 255, 136, 0.2);
+  border-color: rgba(0, 255, 136, 0.6);
   transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
 }
 
 .media-btn:active:not(:disabled) {
@@ -186,18 +216,26 @@ button:disabled { opacity: 0.4; }
 }
 
 .media-btn-prev, .media-btn-next {
-  width: 64px;
-  height: 64px;
+  width: 50px;
+  height: 50px;
 }
 
 .media-btn-play {
-  width: 90px;
-  height: 90px;
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.3);
+  width: 80px;
+  height: 80px;
+  background: rgba(0, 255, 136, 0.15);
+  border: 2px solid rgba(0, 255, 136, 0.4);
 }
 
 .media-btn-play:hover:not(:disabled) {
-  background: rgba(255,255,255,0.2);
-  border-color: rgba(255,255,255,0.5);
+  background: rgba(0, 255, 136, 0.25);
+  border-color: rgba(0, 255, 136, 0.7);
+}
+
+.media-error {
+  color: #ff3b3b;
+  font-size: 16px;
+  opacity: 0.9;
+  margin-bottom: 20px;
+  text-align: center;
 }

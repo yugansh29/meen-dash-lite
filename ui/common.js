@@ -35,9 +35,13 @@ export function mountApp(screen) {
   let healthErrors = [];
   let upstreamOk = true;
   let mediaStatus = "unavailable";
-  let mediaTrack = { title: "No track", artist: "", album: "" };
+  let mediaTrack = { title: "No track", artist: "", album: "", position: 0, duration: 0 };
   let mediaAvailable = false;
   let mediaThumbnailUrl = null;
+  
+  // Local position tracking for smooth progress bar
+  let localPosition = 0;
+  let lastPositionUpdate = Date.now();
 
   // smoothed render values
   let speed = 0, batt = 0, temp = 0;
@@ -52,7 +56,7 @@ export function mountApp(screen) {
     el.innerHTML = "";
     pages[page]({
       root: el,
-      get: () => ({ speed, batt, temp, ownerDetected, headlightOn, healthErrors, upstreamOk, mediaStatus, mediaTrack, mediaAvailable, mediaThumbnailUrl }),
+      get: () => ({ speed, batt, temp, ownerDetected, headlightOn, healthErrors, upstreamOk, mediaStatus, mediaTrack, mediaAvailable, mediaThumbnailUrl, localPosition }),
       actions: { runHealth, setHeadlight, setCabinlight, playPauseMedia, nextTrack, previousTrack }
     });
   }
@@ -128,8 +132,14 @@ export function mountApp(screen) {
         mediaTrack = {
           title: m.track.title || "Unknown Track",
           artist: m.track.artist || "Unknown Artist",
-          album: m.track.album || ""
+          album: m.track.album || "",
+          position: m.track.position || 0,
+          duration: m.track.duration || 0
         };
+        
+        // Sync local position with API position
+        localPosition = mediaTrack.position;
+        lastPositionUpdate = Date.now();
         
         // Fetch thumbnail if track changed and we have valid artist and title
         if ((mediaTrack.title !== prevTitle || mediaTrack.artist !== prevArtist) &&
@@ -138,7 +148,8 @@ export function mountApp(screen) {
           fetchThumbnail(mediaTrack.artist, mediaTrack.title);
         }
       } else {
-        mediaTrack = { title: "No track", artist: "", album: "" };
+        mediaTrack = { title: "No track", artist: "", album: "", position: 0, duration: 0 };
+        localPosition = 0;
         mediaThumbnailUrl = null;
       }
       setUpstream(true);
@@ -180,10 +191,25 @@ export function mountApp(screen) {
   }
 
   // 60fps smoothing loop (no need to hit APIs at 60Hz)
+  let frameCount = 0;
   function anim() {
     speed = lerp(speed, targetSpeed, 0.12);
     batt  = lerp(batt,  targetBatt,  0.08);
     temp  = lerp(temp,  targetTemp,  0.10);
+    
+    // Update local position when playing
+    if (mediaStatus === "playing" && mediaTrack.duration > 0) {
+      const elapsed = Date.now() - lastPositionUpdate;
+      localPosition = Math.min(mediaTrack.position + elapsed, mediaTrack.duration);
+    }
+    
+    // Re-render media page every 15 frames (~4 times per second) if it's the active page
+    frameCount++;
+    const mediaPageIndex = (screen === "left") ? 2 : -1; // Media is 3rd page on left screen
+    if (frameCount % 15 === 0 && page === mediaPageIndex && mediaStatus === "playing") {
+      render();
+    }
+    
     requestAnimationFrame(anim);
   }
 
@@ -264,58 +290,81 @@ export function mountApp(screen) {
   }
 
   function pageMedia({root, get, actions}) {
-    const { mediaStatus, mediaTrack, mediaAvailable, upstreamOk, mediaThumbnailUrl } = get();
+    const { mediaStatus, mediaTrack, mediaAvailable, upstreamOk, mediaThumbnailUrl, localPosition } = get();
     const isPlaying = mediaStatus === "playing";
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     
-    // Build background style for the album art
-    const artStyle = mediaThumbnailUrl 
+    // Calculate progress percentage using local position for smooth updates
+    const currentPosition = localPosition || mediaTrack.position;
+    const progress = mediaTrack.duration > 0 
+      ? (currentPosition / mediaTrack.duration) * 100 
+      : 0;
+    
+    // Format time in mm:ss
+    const formatTime = (ms) => {
+      const seconds = Math.floor(ms / 1000);
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    
+    const currentTime = formatTime(currentPosition);
+    const totalTime = formatTime(mediaTrack.duration);
+    
+    // Build background style - use thumbnail if available, dimmed
+    const backgroundStyle = mediaThumbnailUrl 
       ? `background-image: url('${mediaThumbnailUrl}'); background-size: cover; background-position: center;`
-      : `background: linear-gradient(135deg, rgba(255,50,100,0.3) 0%, rgba(100,50,255,0.3) 100%);`;
+      : `background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);`;
     
     root.innerHTML = `
-      <div class="card media-player">
-        <div class="media-time">${timeStr}</div>
-        <div class="media-art-container">
-          <div class="media-art" style="${artStyle}">
-            ${!mediaThumbnailUrl ? '<div class="media-art-icon">♪</div>' : ''}
+      <div class="card" style="display:flex; align-items:center; justify-content:center;">
+        <div class="media-player" style="${backgroundStyle}">
+          <div class="media-player-content">
+            ${!upstreamOk || !mediaAvailable ? `
+              <div class="media-error">
+                ${!upstreamOk ? "API not reachable" : "No Bluetooth media player"}
+              </div>
+            ` : ""}
+            
+            <div class="media-info">
+              <div class="media-title">${mediaTrack.title}</div>
+              <div class="media-artist">${mediaTrack.artist}</div>
+            </div>
+            
+            <div class="media-progress-container">
+              <div class="media-progress-bar">
+                <div class="media-progress-fill" style="width: ${progress}%"></div>
+              </div>
+              <div class="media-time">
+                <span>${currentTime}</span>
+                <span>${totalTime}</span>
+              </div>
+            </div>
+            
+            <div class="media-controls">
+              <button class="media-btn media-btn-prev" id="btnPrev" ${!mediaAvailable ? "disabled" : ""}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M15 3L6 10l9 7V3z"/>
+                </svg>
+              </button>
+              <button class="media-btn media-btn-play" id="btnPlay" ${!mediaAvailable ? "disabled" : ""}>
+                ${isPlaying ? `
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="currentColor">
+                    <rect x="14" y="10" width="6" height="28" rx="2"/>
+                    <rect x="28" y="10" width="6" height="28" rx="2"/>
+                  </svg>
+                ` : `
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="currentColor">
+                    <path d="M16 10l24 14-24 14V10z"/>
+                  </svg>
+                `}
+              </button>
+              <button class="media-btn media-btn-next" id="btnNext" ${!mediaAvailable ? "disabled" : ""}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 3l9 7-9 7V3z"/>
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-        ${!upstreamOk || !mediaAvailable ? `
-          <div class="media-error">
-            ${!upstreamOk ? "API not reachable" : "No Bluetooth media player"}
-          </div>
-        ` : ""}
-        <div class="media-info">
-          <div class="media-title">${mediaTrack.title}</div>
-          <div class="media-artist">${mediaTrack.artist}</div>
-        </div>
-        <div class="media-controls">
-          <button class="media-btn media-btn-prev" id="btnPrev" ${!mediaAvailable ? "disabled" : ""}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 20L9 12l10-8v16z"/>
-              <path d="M5 19V5"/>
-            </svg>
-          </button>
-          <button class="media-btn media-btn-play" id="btnPlay" ${!mediaAvailable ? "disabled" : ""}>
-            ${isPlaying ? `
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="6" y="4" width="4" height="16"/>
-                <rect x="14" y="4" width="4" height="16"/>
-              </svg>
-            ` : `
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
-            `}
-          </button>
-          <button class="media-btn media-btn-next" id="btnNext" ${!mediaAvailable ? "disabled" : ""}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 4l10 8-10 8V4z"/>
-              <path d="M19 5v14"/>
-            </svg>
-          </button>
         </div>
       </div>
     `;
