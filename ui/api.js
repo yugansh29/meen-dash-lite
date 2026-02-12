@@ -4,10 +4,10 @@ export const CFG = {
   VEHICLE_ID: "685aa1bece3473f0456478b3",
 
   // Polling (ms) - keep reasonable; UI will animate smoothly on its own
-  CARSTATE_POLL_MS: 100,
-  OWNER_POLL_MS: 500,
-  TEMP_POLL_MS: 500,
-  HEADLIGHT_POLL_MS: 500,
+  CARSTATE_POLL_MS: 2000,
+  OWNER_POLL_MS: 3000,
+  TEMP_POLL_MS: 5000,
+  HEADLIGHT_POLL_MS: 2000,
   MEDIA_POLL_MS: 1500,
 
   // Health check on-demand, not constant

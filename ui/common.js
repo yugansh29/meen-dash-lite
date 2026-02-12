@@ -137,15 +137,25 @@ export function mountApp(screen) {
           duration: m.track.duration || 0
         };
         
+        console.log('Track info received:', mediaTrack);
+        
         // Sync local position with API position
         localPosition = mediaTrack.position;
         lastPositionUpdate = Date.now();
         
         // Fetch thumbnail if track changed and we have valid artist and title
-        if ((mediaTrack.title !== prevTitle || mediaTrack.artist !== prevArtist) &&
-            mediaTrack.artist && mediaTrack.title && 
-            mediaTrack.artist !== "Unknown Artist" && mediaTrack.title !== "Unknown Track") {
+        // Don't require exact string match - just check they exist and aren't empty
+        const hasValidInfo = mediaTrack.artist && mediaTrack.title && 
+                            mediaTrack.artist.trim() !== "" && 
+                            mediaTrack.title.trim() !== "" &&
+                            !mediaTrack.artist.toLowerCase().includes("unknown") &&
+                            !mediaTrack.title.toLowerCase().includes("unknown");
+        
+        if ((mediaTrack.title !== prevTitle || mediaTrack.artist !== prevArtist) && hasValidInfo) {
+          console.log('Track changed, fetching thumbnail');
           fetchThumbnail(mediaTrack.artist, mediaTrack.title);
+        } else if (!hasValidInfo) {
+          console.log('Skipping thumbnail fetch - invalid track info');
         }
       } else {
         mediaTrack = { title: "No track", artist: "", album: "", position: 0, duration: 0 };
@@ -166,11 +176,15 @@ export function mountApp(screen) {
 
   async function fetchThumbnail(artist, title) {
     try {
+      console.log('Fetching thumbnail for:', artist, title);
       const result = await getMediaThumbnail(artist, title);
+      console.log('Thumbnail result:', result);
       if (result?.thumbnail_url) {
         mediaThumbnailUrl = result.thumbnail_url;
+        console.log('Thumbnail URL set:', mediaThumbnailUrl);
         render(); // Re-render to show new thumbnail
       } else {
+        console.warn('No thumbnail URL in result');
         mediaThumbnailUrl = null;
       }
     } catch (e) {
@@ -311,12 +325,13 @@ export function mountApp(screen) {
     const totalTime = formatTime(mediaTrack.duration);
     
     // Build background style - use thumbnail if available, dimmed
+    console.log('Media player rendering:', { mediaThumbnailUrl, mediaTrack });
     const backgroundStyle = mediaThumbnailUrl 
       ? `background-image: url('${mediaThumbnailUrl}'); background-size: cover; background-position: center;`
       : `background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);`;
     
     root.innerHTML = `
-      <div class="card" style="display:flex; align-items:center; justify-content:center;">
+      <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
         <div class="media-player" style="${backgroundStyle}">
           <div class="media-player-content">
             ${!upstreamOk || !mediaAvailable ? `
